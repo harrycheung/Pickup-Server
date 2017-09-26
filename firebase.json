@@ -1,0 +1,21 @@
+{
+  "hosting": {
+    "public": "app",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/requestLogin", "function": "requestLogin"
+      },
+      {
+        "source": "/getLongToken", "function": "getLongToken"
+      },
+      {
+        "source": "/x+*", "function": "redirect"
+      }
+    ]
+  }
+}
