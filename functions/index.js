@@ -91,7 +91,7 @@ exports.requestLogin = functions.https.onRequest((req, res) => {
           if (err) {
             reject(err);
           } else {
-            resolve('Success!');
+            resolve(shortToken);
           }
         });
       });
