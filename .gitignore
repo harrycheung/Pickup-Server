@@ -5,3 +5,4 @@ images/
 *.log
 *.apk
 *.ipa
+package-lock.json

@@ -1,21 +1,22 @@
 
-// exports.helloWorld = functions.https.onRequest((request, response) => {
-//  response.send('Hello from Firebase!');
-// });
-
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 const secureCompare = require('secure-compare');
 const rp = require('request-promise-native');
+const Cors = require("cors");
+const express = require("express");
+const gcs = require('@google-cloud/storage')();
+const fileUpload = require("./file-upload");
 
 const webKey = 'AIzaSyDyoOkwBMJ9A5faAScoRx5EFC0N4C9Fc1c';
 const mbAccessKey = 'D4UXyvmRsrb6Q0VoYQd4qo60Y';
 
 var messagebird = require('messagebird')(mbAccessKey);
 
-// console.log('initializeApp', functions.config().firebase);
-// admin.initializeApp(functions.config().firebase);
+const api = express().use(Cors({ origin: true }));
+fileUpload("/uploadImage", api);
+
 const serviceAccount = require('./service-account.json');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -76,7 +77,7 @@ exports.requestLogin = functions.https.onRequest((req, res) => {
       if (phoneNumber.indexOf('111111111') !== -1) {
         return shortToken;
       }
-      
+
       const link = android ? `http://synpickup.com/x+${shortToken}` : `synapsepickup://+${shortToken}`;
 
       var params = {
@@ -133,3 +134,71 @@ exports.redirect = functions.https.onRequest((req, res) => {
   const token = req.path.split('+')[1];
   res.redirect(`synapsepickup://+${token}`);
 });
+
+api.post("/uploadImage", function (req, response, next) {
+  uploadImageToStorage(req.files.file[0])
+  .then(metadata => {
+    response.status(200).json(metadata[0]);
+    next();
+  })
+  .catch(error => {
+    console.error(error);
+    response.status(500).json({ error });
+    next();
+  });
+});
+
+exports.api = functions.https.onRequest(api);
+
+const uploadImageToStorage = file => {
+  return new Promise((resolve, reject) => {
+    console.log('Storing image');
+    const fileUpload = gcs.bucket('synapse-7afed.appspot.com').file(`images/${file.originalname}`);
+    const blobStream = fileUpload.createWriteStream({
+      metadata: {
+        contentType: "image/jpeg"
+      }
+    });
+
+    blobStream.on("error", error => reject(error));
+
+    blobStream.on("finish", () => {
+      console.log('Image stored');
+      fileUpload.getMetadata()
+      .then(metadata => resolve(metadata))
+      .catch(error => reject(error));
+    });
+
+    blobStream.end(file.buffer);
+  });
+}
+
+// exports.uploadImage = functions.https.onRequest((req, res) => {
+//   const file = req.files.file[0];
+//   const storage = admin.storage();
+//   return new Promise((resolve, reject) => {
+//     const fileUpload = storage.bucket().file(file.originalname);
+//     const blobStream = fileUpload.createWriteStream({
+//       metadata: {
+//         contentType: 'image/jpeg'
+//       }
+//     });
+//
+//     blobStream.on('error', error => reject(error));
+//
+//     blobStream.on('finish', () => {
+//       fileUpload.getMetadata()
+//       .then(metadata => resolve(metadata))
+//       .catch(error => reject(error));
+//     });
+//
+//     blobStream.end(file.buffer);
+//   })
+//   .then(metadata => {
+//     res.status(200).json(metadata[0]);
+//   })
+//   .catch(error => {
+//     console.error(error);
+//     res.status(500).json({ error });
+//   });
+// });
